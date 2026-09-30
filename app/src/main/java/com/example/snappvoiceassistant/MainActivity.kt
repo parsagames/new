@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         btnStart.isEnabled = false
         statusView.text = "در حال آماده‌سازی موتور صحبت‌کردن..."
 
-        persianTts = PersianTts(this) { ready ->
+        persianTts = PersianTts(this) { ready, debugLog ->
             runOnUiThread {
                 ttsReady = ready
                 if (ready) {
@@ -50,10 +50,9 @@ class MainActivity : AppCompatActivity() {
                     statusView.text = "آماده — دکمهٔ «شروع دستیار صوتی» را بزنید."
                 } else {
                     btnStart.isEnabled = false
-                    statusView.text =
-                        "هیچ موتور صحبت‌کردن فارسی روی این گوشی پیدا نشد. صفحهٔ دانلود «SherpaTTS» " +
-                                "(یک موتور رایگان و مستقل با صدای فارسی) باز می‌شود؛ لطفاً نصبش کنید و دوباره اپ را باز کنید."
-                    openInstallPage(PersianTts.SHERPA_TTS_PACKAGE)
+                    // به‌جای رفتن خودکار به صفحهٔ دانلود، گزارش دقیق را نشان می‌دهیم
+                    // تا مشخص شود دقیقاً کدام مرحله و با چه خطایی شکست خورده.
+                    statusView.text = "هیچ موتور فارسی پیدا نشد. گزارش برای بررسی:\n\n$debugLog"
                 }
             }
         }
@@ -133,4 +132,4 @@ class MainActivity : AppCompatActivity() {
         persianTts.shutdown()
         super.onDestroy()
     }
-}
+}‌
