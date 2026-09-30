@@ -132,4 +132,4 @@ class MainActivity : AppCompatActivity() {
         persianTts.shutdown()
         super.onDestroy()
     }
-}‌
+}
