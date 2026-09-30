@@ -25,7 +25,7 @@ class VoiceEngine(
     private val acceptWords = listOf("قبول", "تایید", "قبوله", "تأیید", "باشه قبوله")
 
     fun init() {
-        persianTts = PersianTts(context) { ready ->
+        persianTts = PersianTts(context) { ready, _ ->
             ttsReady = ready
         }
         persianTts?.start()
