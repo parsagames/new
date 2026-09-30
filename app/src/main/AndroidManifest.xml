@@ -5,6 +5,20 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+        از اندروید ۱۱ به بعد، یک اپ باید صریحاً اجازهٔ «دیدن» اپ‌های دیگر را بگیرد،
+        وگرنه حتی اگر آن اپ‌ها نصب باشند، این اپ نمی‌تواند تشخیص بدهد که نصب‌اند.
+        این بخش دقیقاً همان اجازه را برای موتورهای تبدیل متن‌به‌گفتار می‌گیرد
+        (SherpaTTS، گفتار گوگل، و هر موتور TTS دیگری که روی گوشی نصب باشد).
+    -->
+    <queries>
+        <package android:name="org.woheller69.ttsengine" />
+        <package android:name="com.google.android.tts" />
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:label="@string/app_name"
