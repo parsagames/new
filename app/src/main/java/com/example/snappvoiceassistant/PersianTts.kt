@@ -6,15 +6,16 @@ import android.speech.tts.TextToSpeech
 import java.util.Locale
 
 /**
- * برای صحبت‌کردن، اول از همان موتور «پیش‌فرضِ کل سیستم» استفاده می‌کند — یعنی هر موتوری
- * که خودِ کاربر در تنظیمات گوشی (تبدیل متن به گفتار > موتور ترجیحی) انتخاب کرده. این
- * مطمئن‌ترین راه است چون دقیقاً همان چیزی‌ست که کاربر خودش تست و تأیید کرده.
- * اگر آن به هر دلیلی جواب نداد، به‌عنوان نسخهٔ پشتیبان، موتورهای شناخته‌شده
- * (SherpaTTS و گوگل) را صریحاً هم امتحان می‌کند.
+ * برای صحبت‌کردن، موتورها را به‌ترتیب امتحان می‌کند:
+ * ۱) موتور پیش‌فرض سیستم (چیزی که کاربر در تنظیمات گوشی انتخاب کرده)
+ * ۲) SherpaTTS به‌صورت صریح
+ * ۳) گوگل به‌صورت صریح
+ * و یک گزارش متنی از نتیجهٔ هر تلاش نگه می‌دارد تا در صورت شکست، دقیقاً معلوم باشد
+ * کدام مرحله و با چه کد خطایی شکست خورده.
  */
 class PersianTts(
     private val context: Context,
-    private val onResult: (ready: Boolean) -> Unit
+    private val onResult: (ready: Boolean, debugLog: String) -> Unit
 ) {
     companion object {
         const val GOOGLE_TTS_PACKAGE = "com.google.android.tts"
@@ -25,15 +26,17 @@ class PersianTts(
     var tts: TextToSpeech? = null
         private set
 
-    // null یعنی «موتور پیش‌فرض سیستم» (همانی که در تنظیمات گوشی انتخاب شده)
-    private val candidates = mutableListOf<String?>(null)
+    private val candidates = mutableListOf<String?>()
     private var index = 0
+    private val log = StringBuilder()
 
     fun start() {
         candidates.clear()
-        candidates.add(null) // اول: موتور پیش‌فرض سیستم (چیزی که کاربر در تنظیمات انتخاب کرده)
+        log.clear()
+        candidates.add(null) // اول: موتور پیش‌فرض سیستم
         if (isInstalled(SHERPA_TTS_PACKAGE)) candidates.add(SHERPA_TTS_PACKAGE)
         if (isInstalled(GOOGLE_TTS_PACKAGE)) candidates.add(GOOGLE_TTS_PACKAGE)
+        log.append("موتورهای پیدا‌شده برای امتحان: ${candidates.map { it ?: "پیش‌فرض سیستم" }}\n")
         index = 0
         tryNext()
     }
@@ -42,29 +45,38 @@ class PersianTts(
         tts?.shutdown()
         tts = null
         if (index >= candidates.size) {
-            onResult(false)
+            onResult(false, log.toString())
             return
         }
-        val engine = candidates[index++]
-        tts = TextToSpeech(context, { status ->
-            val t = tts
-            if (status == TextToSpeech.SUCCESS && t != null) {
-                // موتوری که واقعاً وصل شده را (چه صریح خواسته باشیم، چه پیش‌فرض بوده) بررسی کن
-                val connectedEngine = try { t.defaultEngine } catch (e: Exception) { null }
-                val isTrustedEngine = engine == SHERPA_TTS_PACKAGE || connectedEngine == SHERPA_TTS_PACKAGE
-                if (configurePersian(t) || isTrustedEngine) {
-                    onResult(true)
+        val engine = candidates[index]
+        val engineLabel = engine ?: "پیش‌فرض سیستم"
+        index++
+        try {
+            tts = TextToSpeech(context, { status ->
+                val t = tts
+                if (status == TextToSpeech.SUCCESS && t != null) {
+                    val connectedEngine = try { t.defaultEngine } catch (e: Exception) { "خطا: ${e.message}" }
+                    log.append("[$engineLabel] وصل شد ✅ — موتور واقعی متصل‌شده: $connectedEngine\n")
+                    val isTrustedEngine = engine == SHERPA_TTS_PACKAGE || connectedEngine == SHERPA_TTS_PACKAGE
+                    val voiceResult = configurePersian(t)
+                    log.append("[$engineLabel] پیدا‌کردن صدای فارسی: ${if (voiceResult) "موفق ✅" else "ناموفق ❌"}\n")
+                    if (voiceResult || isTrustedEngine) {
+                        onResult(true, log.toString())
+                    } else {
+                        tryNext()
+                    }
                 } else {
+                    log.append("[$engineLabel] وصل نشد ❌ — کد وضعیت: $status\n")
                     tryNext()
                 }
-            } else {
-                tryNext()
-            }
-        }, engine)
+            }, engine)
+        } catch (e: Exception) {
+            log.append("[$engineLabel] خطای ساخت TTS: ${e.message}\n")
+            tryNext()
+        }
     }
 
     private fun configurePersian(t: TextToSpeech): Boolean {
-        // ۱) دنبال صدایی بگرد که زبانش فارسی باشد (با هر کد زبانی)
         try {
             val voice = t.voices?.firstOrNull { v ->
                 v.locale.language.lowercase() in PERSIAN_LANGS &&
@@ -77,7 +89,6 @@ class PersianTts(
         } catch (e: Exception) {
             // ادامه با روش دوم
         }
-        // ۲) روش دوم: امتحان کردن کدهای زبانِ ممکن
         val locales = listOf(
             Locale("fa", "IR"), Locale("fa"),
             Locale("fas", "IR"), Locale("fas"),
