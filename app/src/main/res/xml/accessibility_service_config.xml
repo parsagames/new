@@ -11,4 +11,4 @@
     android:canPerformGestures="true"
     android:canTakeScreenshot="true"
     android:notificationTimeout="150"
-    android:packageNames="cab.snappbox.passenger" />
+    android:packageNames="com.snappbox.bikerapp" />
